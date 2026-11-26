@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <base target="_top">
+  <?!= include('Styles'); ?>
+</head>
+<body>
+<header class="topbar">
+  <div><div class="brand">📦 পণ্য ব্যবস্থাপনা</div><div class="sub">বাংলা Product Entry Dashboard</div></div>
+  <button class="primary" onclick="openForm()">＋ নতুন পণ্য</button>
+</header>
+<main class="wrap">
+  <section class="stats" id="stats"></section>
+  <section class="toolbar">
+    <input id="search" placeholder="🔎 পণ্যের নাম / SKU / ক্যাটাগরি খুঁজুন..." oninput="render()">
+    <button onclick="exportFile('excel')">Excel রিপোর্ট</button>
+    <button onclick="exportFile('pdf')">PDF রিপোর্ট</button>
+    <button onclick="backup()">Drive Backup</button>
+  </section>
+  <section class="tablebox">
+    <div class="tablehead"><h2>পণ্যের তালিকা</h2><span id="count"></span></div>
+    <div class="table-scroll"><table><thead><tr><th>ছবি</th><th>পণ্যের নাম</th><th>SKU</th><th>ক্যাটাগরি</th><th>ক্রয়মূল্য</th><th>বিক্রয়মূল্য</th><th>স্টক</th><th>সম্ভাব্য লাভ</th><th>অ্যাকশন</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div id="empty" class="empty" hidden>এখনো কোনো পণ্য যোগ করা হয়নি। “নতুন পণ্য” বাটনে ক্লিক করুন।</div>
+  </section>
+  <p class="foot">ডেটা আপনার Google Sheet-এ সংরক্ষিত হয় এবং ছবি Google Drive-এ থাকে। একই Web App URL মোবাইল ও কম্পিউটারে ব্যবহার করুন।</p>
+</main>
+<div id="modal" class="modal" hidden>
+ <div class="dialog">
+  <div class="dialoghead"><h2 id="formTitle">নতুন পণ্য যোগ করুন</h2><button class="x" onclick="closeForm()">✕</button></div>
+  <form id="productForm" onsubmit="submitForm(event)">
+   <input type="hidden" id="id">
+   <div class="formgrid">
+    <label>পণ্যের নাম *<input id="name" required maxlength="120"></label>
+    <label>SKU / কোড<input id="sku"></label>
+    <label>ক্যাটাগরি<input id="category" placeholder="যেমন: ইলেকট্রনিক্স"></label>
+    <label>ক্রয়মূল্য (৳)<input id="cost" type="number" min="0" step="0.01" value="0"></label>
+    <label>বিক্রয়মূল্য (৳)<input id="price" type="number" min="0" step="0.01" value="0"></label>
+    <label>বর্তমান স্টক<input id="stock" type="number" min="0" step="1" value="0"></label>
+    <label>সর্বনিম্ন স্টক সতর্কতা<input id="minStock" type="number" min="0" step="1" value="0"></label>
+    <label class="wide">পণ্যের ছবি<input id="image" type="file" accept="image/*"><small>JPG/PNG/WebP, সর্বোচ্চ 2 MB পরামর্শযোগ্য। নতুন ছবি দিলে আগের ছবিটি প্রতিস্থাপিত হবে।</small></label>
+    <label class="wide">বিবরণ<textarea id="description" rows="3"></textarea></label>
+   </div>
+   <div class="actions"><button type="button" onclick="closeForm()">বাতিল</button><button class="primary" id="saveBtn">সংরক্ষণ করুন</button></div>
+  </form>
+ </div>
+</div>
+<div id="stockModal" class="modal" hidden><div class="dialog compact"><div class="dialoghead"><h2>স্টক পরিবর্তন</h2><button class="x" onclick="closeStock()">✕</button></div>
+<label>পরিমাণ (+ যোগ / − কম)<input id="stockDelta" type="number" step="1" required></label><label>নোট<input id="stockNote" placeholder="যেমন: নতুন মাল এসেছে"></label>
+<div class="actions"><button onclick="closeStock()">বাতিল</button><button class="primary" onclick="saveStock()">আপডেট</button></div></div></div>
+<div id="toast" class="toast"></div>
+<script>
+let products=[], currency='৳', stockId=null;
+function call(fn,...args){return new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(new Error(e.message||e)))[fn](...args));}
+function money(n){return currency+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2});}
+function toast(s){const t=document.getElementById('toast');t.textContent=s;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+async function load(){try{const d=await call('getData');products=d.products;currency=d.currency;render();}catch(e){toast(e.message);}}
+function render(){
+ const q=document.getElementById('search').value.toLowerCase();
+ const list=products.filter(p=>[p.name,p.sku,p.category].join(' ').toLowerCase().includes(q));
+ const units=products.reduce((s,p)=>s+p.stock,0), cost=products.reduce((s,p)=>s+p.stock*p.cost,0), value=products.reduce((s,p)=>s+p.stock*p.price,0);
+ document.getElementById('stats').innerHTML=`<div class="stat"><span>মোট পণ্য</span><b>${products.length}</b></div><div class="stat"><span>মোট ইউনিট স্টক</span><b>${units.toLocaleString('en-US')}</b></div><div class="stat"><span>স্টকের ক্রয়মূল্য</span><b>${money(cost)}</b></div><div class="stat"><span>সম্ভাব্য মোট লাভ</span><b class="green">${money(value-cost)}</b></div>`;
+ document.getElementById('count').textContent=`${list.length}টি পণ্য`;
+ document.getElementById('empty').hidden=list.length>0;
+ document.getElementById('rows').innerHTML=list.map(p=>`<tr><td>${p.imageUrl?`<img class="thumb" src="${esc(p.imageUrl)}" onerror="this.style.display='none'">`:'<span class="noimg">📦</span>'}</td><td><b>${esc(p.name)}</b>${p.description?`<small class="desc">${esc(p.description)}</small>`:''}</td><td>${esc(p.sku||'—')}</td><td>${esc(p.category||'—')}</td><td>${money(p.cost)}</td><td>${money(p.price)}</td><td><span class="stock ${p.stock<=p.minStock?'low':''}">${p.stock}</span></td><td class="green">${money(p.stock*(p.price-p.cost))}</td><td><div class="rowactions"><button onclick="editProduct('${p.id}')">Edit</button><button onclick="openStock('${p.id}')">স্টক</button><button class="danger" onclick="removeProduct('${p.id}')">Delete</button></div></td></tr>`).join('');
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function openForm(p){document.getElementById('productForm').reset();document.getElementById('id').value=p?.id||'';document.getElementById('formTitle').textContent=p?'পণ্য Edit করুন':'নতুন পণ্য যোগ করুন';['name','sku','category','cost','price','stock','minStock','description'].forEach(k=>document.getElementById(k).value=p?.[k]??( ['cost','price','stock','minStock'].includes(k)?0:''));document.getElementById('modal').hidden=false;}
+function closeForm(){document.getElementById('modal').hidden=true;}
+function editProduct(id){const p=products.find(x=>x.id===id);if(p)openForm(p);}
+async function submitForm(e){e.preventDefault();const btn=document.getElementById('saveBtn');btn.disabled=true;btn.textContent='সংরক্ষণ হচ্ছে...';try{
+ const f=document.getElementById('image').files[0];let imageData='',imageName='';
+ if(f){if(f.size>2*1024*1024)throw Error('ছবির সাইজ 2 MB-এর মধ্যে রাখুন।');imageData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)});imageName=f.name;}
+ const p={};['id','name','sku','category','cost','price','stock','minStock','description'].forEach(k=>p[k]=document.getElementById(k).value);
+ p.imageData=imageData;p.imageName=imageName;const d=await call('saveProduct',p);products=d.products;render();closeForm();toast('পণ্য সংরক্ষণ হয়েছে।');
+ }catch(e){toast(e.message)}finally{btn.disabled=false;btn.textContent='সংরক্ষণ করুন';}}
+async function removeProduct(id){if(!confirm('এই পণ্যটি মুছে ফেলবেন?'))return;try{const d=await call('deleteProduct',id);products=d.products;render();toast('পণ্য মুছে ফেলা হয়েছে।')}catch(e){toast(e.message)}}
+function openStock(id){stockId=id;document.getElementById('stockDelta').value='';document.getElementById('stockNote').value='';document.getElementById('stockModal').hidden=false;}
+function closeStock(){document.getElementById('stockModal').hidden=true;}
+async function saveStock(){try{const n=Number(document.getElementById('stockDelta').value);if(!Number.isInteger(n)||n===0)throw Error('শূন্য ছাড়া পূর্ণ সংখ্যা দিন।');const d=await call('adjustStock',stockId,n,document.getElementById('stockNote').value);products=d.products;render();closeStock();toast('স্টক আপডেট হয়েছে।')}catch(e){toast(e.message)}}
+async function exportFile(type){try{toast('রিপোর্ট তৈরি হচ্ছে...');const r=await call(type==='excel'?'exportExcel':'exportPdf');window.open(r.url,'_blank');toast(r.name+' তৈরি হয়েছে।')}catch(e){toast(e.message)}}
+async function backup(){try{const r=await call('createBackup');window.open(r.url,'_blank');toast('Drive Backup তৈরি হয়েছে।')}catch(e){toast(e.message)}}
+load();
+</script>
+</body></html>

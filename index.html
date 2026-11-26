@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="bn"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14213d"><meta name="description" content="বাংলা Product Dashboard">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icons/icon-192.png">
+<title>বাংলা Product Dashboard</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:system-ui,sans-serif;background:#f3f6fb}
+.app{height:100dvh;display:flex;flex-direction:column}header{background:linear-gradient(115deg,#14213d,#263f72);color:white;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:58px}
+.brand{font-weight:700;font-size:16px}.sub{font-size:11px;opacity:.8}button{border:0;border-radius:8px;padding:9px 10px;font:inherit;font-size:12px}.open{background:#dbeafe;color:#17346b}.install{background:white;color:#14213d;font-weight:700}
+main{flex:1;min-height:0}iframe{width:100%;height:100%;border:0;display:block;background:#f3f6fb}.notice{font-size:12px;padding:7px 10px;background:#fff4d6;color:#624800}.notice[hidden]{display:none}
+</style></head><body><div class="app">
+<header><div><div class="brand">📦 বাংলা Product Dashboard</div><div class="sub">ইনস্টলযোগ্য মোবাইল অ্যাপ</div></div>
+<div><button class="open" id="openFull">পূর্ণ স্ক্রিনে খুলুন</button> <button class="install" id="installBtn" hidden>Install</button></div></header>
+<div id="notice" class="notice" hidden>Dashboard না এলে পূর্ণ স্ক্রিনে খুলুন চাপুন এবং Google-এ সাইন ইন করুন।</div>
+<main><iframe id="dashboard" title="Bangla Product Dashboard"></iframe></main></div>
+<script src="./config.js"></script><script>
+(()=>{const url=(window.PWA_CONFIG?.webAppUrl||"").trim(),frame=document.getElementById("dashboard"),notice=document.getElementById("notice");
+if(/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(url)){frame.src=url;document.getElementById("openFull").onclick=()=>window.open(url,"_blank","noopener");setTimeout(()=>notice.hidden=false,7000);}
+else{notice.hidden=false;notice.textContent="config.js-এ আপনার Apps Script /exec URL বসান।";}
+let promptEvent=null;const btn=document.getElementById("installBtn");
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();promptEvent=e;btn.hidden=false;});
+btn.onclick=async()=>{if(promptEvent){promptEvent.prompt();await promptEvent.userChoice;promptEvent=null;btn.hidden=true;}};
+if("serviceWorker" in navigator && location.protocol==="https:")addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(console.error));
+})();
+</script></body></html>

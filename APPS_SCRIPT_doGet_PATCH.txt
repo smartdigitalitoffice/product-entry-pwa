@@ -1,0 +1,15 @@
+Apps Script Code.gs-এ বর্তমান doGet() ফাংশনটি নিচেরটি দিয়ে প্রতিস্থাপন করুন:
+
+function doGet() {
+  setup_();
+  return HtmlService.createTemplateFromFile('Index').evaluate()
+    .setTitle('বাংলা Product Entry Dashboard')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+এরপর Save > Deploy > Manage deployments > Edit > New version > Deploy করুন।
+
+কেন: PWA shell-এর iframe-এ Apps Script dashboard দেখানোর অনুমতি।
+সতর্কতা: ALLOWALL যেকোনো সাইটকে embed করতে দিতে পারে। Web App access “Only myself” রাখুন।
+Google sign-in iframe-এ বাধাগ্রস্ত হলে PWA-র “পূর্ণ স্ক্রিনে খুলুন” বাটন ব্যবহার করুন।
